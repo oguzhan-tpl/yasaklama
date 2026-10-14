@@ -10,6 +10,7 @@ import os
 import secrets
 import sqlite3
 import time
+import threading
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -208,6 +209,23 @@ class PolicyResolver(BaseResolver):
     def __init__(self, upstream: str, upstream_port: int = 53):
         self.upstream = upstream
         self.upstream_port = upstream_port
+        self._cache_lock = threading.Lock()
+        self._cached_domains: set[str] = set()
+        self._cache_at = 0.0
+
+    def _domains(self) -> set[str]:
+        now = time.monotonic()
+        if now - self._cache_at < 0.75:
+            return self._cached_domains
+        with self._cache_lock:
+            now = time.monotonic()
+            if now - self._cache_at < 0.75:
+                return self._cached_domains
+            with database() as con:
+                latest = {row["domain"] for row in con.execute("SELECT domain FROM rules")}
+            self._cached_domains = latest
+            self._cache_at = time.monotonic()
+            return self._cached_domains
 
     def resolve(self, request, handler):
         qname = str(request.q.qname).rstrip(".").lower()
@@ -215,9 +233,7 @@ class PolicyResolver(BaseResolver):
             canonical = qname.encode("idna").decode("ascii")
         except UnicodeError:
             canonical = qname
-        with database() as con:
-            domains = {row["domain"] for row in con.execute("SELECT domain FROM rules")}
-        if matches_blocked_domain(canonical, domains):
+        if matches_blocked_domain(canonical, self._domains()):
             reply = request.reply()
             reply.header.rcode = RCODE.NXDOMAIN
             reply.header.aa = 1
@@ -381,6 +397,7 @@ def main() -> None:
     if args.web_host not in {"127.0.0.1", "localhost", "::1"} and not args.ssl_certfile:
         print("UYARI: TLS olmadan yönetim panelini LAN'a açıyorsunuz; parolalar ağda şifrelenmez.")
         print("Yalnızca test ağında kullanın veya HTTPS sertifikası tanımlayın.")
+    initialize_database()
     resolver = PolicyResolver(args.upstream, args.upstream_port)
     udp_server = DNSServer(resolver, port=args.dns_port, address=args.dns_host, tcp=False)
     tcp_server = DNSServer(resolver, port=args.dns_port, address=args.dns_host, tcp=True)
