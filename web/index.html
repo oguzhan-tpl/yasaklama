@@ -62,7 +62,7 @@ footer{font-size:11px;color:#71859e;text-align:center;margin-top:28px}
         <div class="table-wrap"><table><thead><tr><th>Alan adı</th><th>Durum</th><th>İşlem</th></tr></thead><tbody id="rulesBody"></tbody></table></div>
       </article>
       <article class="card">
-        <div class="section-head"><div><h2>Son engelleme olayları</h2><p>Yalnızca engellenen sorgular kaydedilir.</p></div></div>
+        <div class="section-head"><div><h2>Son engelleme olayları</h2><p>Tekrarlayan olaylar yükü azaltmak için kısa süreli birleştirilir.</p></div></div>
         <div id="logsBody" class="logs"></div>
       </article>
     </section>
@@ -152,7 +152,7 @@ function renderAdminEvents(events) {
     symbol.style.background = event.action === "rule_removed" ? "#321f2b" : "#102d2a";
     symbol.style.color = event.action === "rule_removed" ? "#ff9cad" : "#97f1cf";
     const copy = document.createElement("div");
-    const actionNames = {rule_added:"Engel eklendi", rule_removed:"Engel kaldırıldı", rule_unchanged:"Kural zaten vardı"};
+    const actionNames = {rule_added:"Engel eklendi", rule_removed:"Engel kaldırıldı", rule_unchanged:"Kural zaten vardı", login:"Yönetici girişi", logout:"Yönetici çıkışı"};
     const domain = safeCell(actionNames[event.action] || event.action, "log-domain");
     const meta = safeCell(event.detail, "log-meta");
     copy.append(domain, meta);
