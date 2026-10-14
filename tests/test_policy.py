@@ -1,10 +1,19 @@
 import pytest
+from dnslib import DNSRecord, QTYPE, RCODE
 
-from controller import matches_blocked_domain, normalize_domain
+from controller import PolicyResolver, matches_blocked_domain, normalize_domain
 
 
 def test_normalizes_case_and_trailing_dot():
     assert normalize_domain("  WWW.Example.COM. ") == "www.example.com"
+
+
+def test_accepts_full_web_url_and_extracts_hostname():
+    assert normalize_domain("https://www.example.com/a/path?q=1") == "www.example.com"
+
+
+def test_accepts_url_without_scheme():
+    assert normalize_domain("news.example.com/article") == "news.example.com"
 
 
 def test_normalizes_international_domain_name():
@@ -15,13 +24,15 @@ def test_normalizes_international_domain_name():
     "value",
     [
         "",
-        "https://example.com",
-        "example.com/path",
+        "ftp://example.com",
+        "https://user:pass@example.com",
+        "https://example.com:bad/path",
         "*.example.com",
         "example..com",
         "-bad.example",
         "bad-.example",
         "127.0.0.1",
+        "https://127.0.0.1/path",
     ],
 )
 def test_rejects_invalid_domain_input(value):
@@ -45,3 +56,29 @@ def test_block_rule_does_not_match_lookalike_domains():
 
 def test_query_domain_is_normalized_before_matching():
     assert matches_blocked_domain("WWW.BÜCHER.DE.", {"xn--bcher-kva.de"})
+
+
+def test_dns_block_response_maps_a_query_to_portal_ip():
+    resolver = PolicyResolver("127.0.0.1", block_ip="192.0.2.10")
+    request = DNSRecord.question("social.example", "A")
+    response = resolver._blocked_reply(request, "social.example")
+    assert response.header.rcode == RCODE.NOERROR
+    assert response.rr
+    assert QTYPE[response.rr[0].rtype] == "A"
+    assert str(response.rr[0].rdata) == "192.0.2.10"
+    assert response.rr[0].ttl == 5
+
+
+def test_dns_block_response_returns_no_aaaa_when_http_portal_is_enabled():
+    resolver = PolicyResolver("127.0.0.1", block_ip="192.0.2.10")
+    request = DNSRecord.question("social.example", "AAAA")
+    response = resolver._blocked_reply(request, "social.example")
+    assert response.header.rcode == RCODE.NOERROR
+    assert response.rr == []
+
+
+def test_dns_block_response_uses_nxdomain_without_portal_ip():
+    resolver = PolicyResolver("127.0.0.1")
+    request = DNSRecord.question("social.example", "A")
+    response = resolver._blocked_reply(request, "social.example")
+    assert response.header.rcode == RCODE.NXDOMAIN
