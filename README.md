@@ -1,5 +1,15 @@
 # Yasaklama — Merkezi DNS Filtreleme ve HTTP Engel Portalı
 
+## En kolay kullanım (Windows)
+
+1. [Depoyu ZIP olarak indir](https://github.com/oguzhan-tpl/yasaklama/archive/refs/heads/main.zip) ve bir klasöre çıkar. Bu bilgisayarda Python 3.11+ kurulu olmalı.
+2. Klasördeki **Baslat-Yasaklama.bat** dosyasına çift tıkla. Windows yönetici izni sorarsa, yalnızca bu sunucuyu yönetmeye yetkiliysen onayla. İlk çalıştırmada parolanı bir kez oluştur; servis aynı pencerede açık kalır.
+3. Ekranda gösterilen sunucu IP adresini okul router/DHCP ayarlarında istemcilerin DNS adresi olarak **bir kez** tanımlat. Sunucunun IP adresi sabitlenmeli. Bu adım yapılmazsa ağdaki bilgisayarların DNS sorguları bu sunucuya gelmez.
+4. Paneli sunucu IP adresi ve HTTPS://IP:8765 ile aç. Başka bilgisayardan açıldığında yerel, kendinden imzalı sertifika uyarısı görünür; kalıcı okul kullanımında okulun güvenilir sertifikasını kullanın. Panelden https://site.example/page gibi tam bir adres yapıştırıp ekle. Kaldırmak için kuralın yanındaki **Kaldır** düğmesini kullan.
+
+**Bundan sonra günlük kullanım:** Sunucu penceresi çalışır durumda kalır; bir bilgisayardaki panelden eklediğin/kaldırdığın kural, bu DNS sunucusunu kullanan tüm cihazlara uygulanır. Sunucuyu kapatırsan filtre de durur.
+
+
 Yetkili okul ağı yöneticileri için merkezi alan adı filtreleme servisi ve Türkçe yönetim paneli. Yönetici paneline başka bir bilgisayardan bağlanıp URL yapıştırabilir, alan adını engelleyebilir veya kuralı kaldırabilirsiniz. DNS politikası sunucuda tutulur; istemci başına gizli ajan kurulmaz.
 
 ## Özellikler
