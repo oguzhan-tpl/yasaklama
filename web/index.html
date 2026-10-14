@@ -21,6 +21,44 @@ main{padding:28px clamp(16px,3vw,44px) 50px;min-width:0}.topbar{display:flex;ali
 footer{font-size:11px;color:#71859e;text-align:center;margin-top:28px}
 @media(max-width:1050px){.app{grid-template-columns:75px minmax(0,1fr)}.sidebar{padding:22px 10px}.sidebar .brand{padding:0 6px 35px}.brand-name,.nav-text,.nav-label,.sidebar-footer{display:none}.sidebar .brand-icon{flex:0 0 42px}.nav-item{justify-content:center;padding:13px 5px}.nav-icon{font-size:19px}.split{grid-template-columns:1fr}}
 @media(max-width:720px){.app{display:block}.sidebar{display:none}main{padding:21px 14px 36px}.topbar{align-items:flex-start}.top-actions{gap:6px}.top-actions .secondary{padding:9px 10px}.grid{grid-template-columns:1fr;gap:10px}.card{padding:16px}.metric-value{font-size:30px}.domain-form{flex-direction:column}.domain-form button{width:100%}.section-head{align-items:flex-start}.topbar p{font-size:13px}.callout{align-items:flex-start}}
+
+/* Minimal flat 2D theme */
+:root{color-scheme:light;--bg:#f4f6f9;--panel:#ffffff;--panel2:#f8fafc;--line:#dce2e9;--text:#172536;--muted:#687789;--mint:#185abd;--blue:#185abd;--red:#b42318;--radius:4px}
+body{background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif}
+button{border-radius:3px;box-shadow:none;transition:background-color .12s ease}
+button:hover{transform:none}
+.primary{background:#184f9d;color:#fff}.primary:hover{background:#123f80}
+.secondary{background:#fff;color:#24364a;border:1px solid #cbd4df}.secondary:hover{background:#f0f3f7}
+.danger{background:#fff;color:#b42318;border:1px solid #d9a8a8}.danger:hover{background:#fff1f1}
+.login-card{background:#fff;border:1px solid var(--line);border-radius:4px;box-shadow:none}
+.brand-icon{border-radius:3px;background:#184f9d;color:#fff}
+.login-card h1{letter-spacing:-.4px}
+input{background:#fff;color:#172536;border:1px solid #cbd4df;border-radius:3px}
+input:focus{border-color:#184f9d;box-shadow:0 0 0 2px #184f9d1a}
+.security-note{background:#f7f9fb;border:1px solid #dce2e9;border-radius:3px;color:#627286}
+.sidebar{background:#fff;border-right:1px solid #dce2e9}
+.brand-name,.brand{letter-spacing:0}
+.nav-label{letter-spacing:.7px;color:#64748b}
+.nav-item{border-radius:3px;color:#415166}
+.nav-item.active{background:#edf3fc;border-color:#cddcf2;color:#174a8e}
+.sidebar-footer{background:#f8fafc;border:1px solid #dce2e9;border-radius:3px}
+.dot{box-shadow:none}
+.eyebrow{color:#184f9d;letter-spacing:.8px}
+.avatar{border-radius:3px;background:#edf3fc;color:#184f9d}
+.card{background:#fff;border:1px solid #dce2e9;border-radius:4px;box-shadow:none}
+.metric-icon{border-radius:3px;background:#edf3fc;color:#184f9d}
+.metric-value{letter-spacing:-.5px}
+.pill{border-radius:3px;border:1px solid #bad7c8;background:#eff9f2;color:#17663a}
+th{letter-spacing:.5px;color:#64748b}
+td{border-bottom:1px solid #e8edf2;color:#334155}
+.domain{color:#172536}
+.log-item{border-bottom:1px solid #e8edf2}
+.log-symbol{border-radius:3px}
+.callout{background:#f8fafc;border:1px solid #dce2e9;border-radius:4px;color:#526276}
+.callout strong{color:#172536}
+.toast{background:#172536;border:1px solid #172536;border-radius:3px;box-shadow:none;color:#fff}
+.toast.bad{background:#7f1d1d;border-color:#7f1d1d;color:#fff}
+
 </style>
 </head>
 <body>
