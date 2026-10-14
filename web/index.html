@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b1220">
+<title>Yasaklama | Ağ erişim yönetimi</title>
+<style>
+:root{color-scheme:dark;--bg:#080e19;--panel:#101a2a;--panel2:#121f32;--line:#26364b;--text:#eff6ff;--muted:#92a5bd;--mint:#6ee7c0;--blue:#75a7ff;--red:#ff8a9b;--radius:18px}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 10% -15%,#1c3354 0,transparent 40%),var(--bg);color:var(--text);font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
+button,input{font:inherit}button{cursor:pointer;border:0;border-radius:11px;padding:10px 15px;font-weight:700;transition:transform .15s,opacity .15s}button:hover{transform:translateY(-1px)}button:disabled{opacity:.5;cursor:wait}
+.primary{background:var(--mint);color:#05251d}.secondary{background:#1b2b43;color:var(--text);border:1px solid var(--line)}.danger{background:#381e2d;color:#ffb6c1;border:1px solid #643044}.muted{color:var(--muted)}.tiny{font-size:12px}.hidden{display:none!important}
+.login-wrap{min-height:100vh;display:grid;place-items:center;padding:24px}.login-card{width:min(430px,100%);padding:34px;background:#101a2aec;border:1px solid var(--line);border-radius:24px;box-shadow:0 26px 80px #0008}.brand{display:flex;align-items:center;gap:12px;font-size:20px;font-weight:850;letter-spacing:-.5px}.brand-icon{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;color:#061c1a;background:linear-gradient(135deg,#7ff0ce,#86b5ff);font-size:22px}.login-card h1{font-size:30px;line-height:1.15;letter-spacing:-1px;margin:26px 0 9px}.login-card p{color:var(--muted);margin:0 0 26px}
+label{display:block;color:#bdcce0;font-size:13px;font-weight:700;margin-bottom:8px}input{width:100%;padding:13px 14px;color:var(--text);background:#091321;border:1px solid #2a3b52;border-radius:12px;outline:none}input:focus{border-color:var(--mint);box-shadow:0 0 0 3px #6ee7c01a}.login-card button{width:100%;margin-top:14px;padding:13px}.error{margin-top:14px;color:#ffb5c0;min-height:20px;font-size:13px}.security-note{padding:13px 14px;margin-top:22px;background:#0b1422;border:1px solid #26374c;border-radius:12px;color:#91a6bf;font-size:12px}
+.app{max-width:1500px;margin:auto;display:grid;grid-template-columns:250px minmax(0,1fr);min-height:100vh}.sidebar{padding:27px 18px;border-right:1px solid #223149;background:#09111e99}.sidebar .brand{padding:0 9px 35px}.nav-label{font-size:11px;font-weight:800;letter-spacing:1.5px;color:#70839d;padding:0 12px 10px}.nav-item{border:1px solid transparent;border-radius:12px;padding:11px 12px;color:#c0cde0;margin-bottom:5px;display:flex;align-items:center;gap:11px}.nav-item.active{background:#193044;border-color:#2c4e61;color:#b8ffe7}.nav-icon{font-size:17px;width:20px;text-align:center}.sidebar-footer{position:sticky;top:90vh;margin:50px 6px 0;padding:14px;background:#0d1828;border:1px solid #24354b;border-radius:14px}.dot{width:8px;height:8px;background:var(--mint);border-radius:50%;display:inline-block;margin-right:7px;box-shadow:0 0 12px #6ee7c088}
+main{padding:28px clamp(16px,3vw,44px) 50px;min-width:0}.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:28px}.eyebrow{color:var(--mint);font-weight:800;font-size:11px;letter-spacing:1.7px;text-transform:uppercase}.topbar h1{font-size:clamp(25px,3vw,36px);letter-spacing:-1.4px;line-height:1.15;margin:6px 0}.topbar p{margin:6px 0 0;color:var(--muted)}.top-actions{display:flex;align-items:center;gap:10px}.avatar{width:38px;height:38px;border-radius:12px;background:#233c54;display:grid;place-items:center;font-weight:800;color:#bbfbe4}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px;margin-bottom:20px}.card{border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(145deg,#111d2d,#0e1725);padding:20px;min-width:0}.metric-top{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:13px;font-weight:700}.metric-icon{height:34px;width:34px;border-radius:11px;display:grid;place-items:center;background:#1b3043;color:var(--mint);font-size:17px}.metric-value{font-size:34px;font-weight:850;letter-spacing:-1.5px;margin-top:13px}.metric-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.section-head{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:16px}.section-head h2{font-size:18px;letter-spacing:-.4px;margin:0}.section-head p{margin:4px 0 0;color:var(--muted);font-size:13px}.split{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:18px}.domain-form{display:flex;gap:9px;margin:18px 0 16px}.domain-form input{min-width:0}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:440px}th{text-align:left;color:#8297b2;font-size:11px;letter-spacing:1px;text-transform:uppercase;font-weight:800;padding:12px 10px;border-bottom:1px solid var(--line)}td{padding:13px 10px;border-bottom:1px solid #203047;color:#dce6f4;font-size:13px}tr:last-child td{border-bottom:0}.domain{font-weight:750;color:#f2f7ff}.pill{display:inline-flex;align-items:center;gap:6px;border:1px solid #2a564b;background:#102d2a;color:#97f1cf;border-radius:99px;padding:4px 9px;font-size:11px;font-weight:800}.empty{text-align:center;padding:28px 12px;color:var(--muted);font-size:13px}
+.logs{display:flex;flex-direction:column}.log-item{display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:10px;padding:13px 0;border-bottom:1px solid #203047}.log-item:last-child{border:0}.log-symbol{width:32px;height:32px;background:#321f2b;color:#ff9cad;border-radius:10px;display:grid;place-items:center}.log-domain{font-size:13px;font-weight:750;overflow-wrap:anywhere}.log-meta{font-size:11px;color:var(--muted);margin-top:3px}.log-time{font-size:11px;color:#90a2b9;white-space:nowrap}.callout{display:flex;gap:12px;padding:15px 17px;background:#111d2b;border:1px solid #26384c;border-radius:14px;margin:20px 0;color:#acbdd2;font-size:12px}.callout strong{color:#d8e6f6}.callout .bulb{font-size:19px}
+.toast{position:fixed;bottom:22px;right:22px;max-width:min(420px,calc(100vw - 44px));padding:13px 17px;background:#17283b;border:1px solid #3a546d;color:#eff6ff;border-radius:12px;box-shadow:0 12px 45px #0008;z-index:10}.toast.bad{border-color:#764051;color:#ffc2cb}
+footer{font-size:11px;color:#71859e;text-align:center;margin-top:28px}
+@media(max-width:1050px){.app{grid-template-columns:75px minmax(0,1fr)}.sidebar{padding:22px 10px}.sidebar .brand{padding:0 6px 35px}.brand-name,.nav-text,.nav-label,.sidebar-footer{display:none}.sidebar .brand-icon{flex:0 0 42px}.nav-item{justify-content:center;padding:13px 5px}.nav-icon{font-size:19px}.split{grid-template-columns:1fr}}
+@media(max-width:720px){.app{display:block}.sidebar{display:none}main{padding:21px 14px 36px}.topbar{align-items:flex-start}.top-actions{gap:6px}.top-actions .secondary{padding:9px 10px}.grid{grid-template-columns:1fr;gap:10px}.card{padding:16px}.metric-value{font-size:30px}.domain-form{flex-direction:column}.domain-form button{width:100%}.section-head{align-items:flex-start}.topbar p{font-size:13px}.callout{align-items:flex-start}}
+</style>
+</head>
+<body>
+<section id="loginView" class="login-wrap">
+  <form id="loginForm" class="login-card">
+    <div class="brand"><div class="brand-icon">Y</div><span>Yasaklama<span style="color:var(--mint)">.</span></span></div>
+    <h1>Ağ erişimini<br>tek merkezden yönet.</h1>
+    <p>Okul ağı için merkezi DNS filtreleme paneli.</p>
+    <label for="password">Yönetici parolası</label>
+    <input id="password" type="password" autocomplete="current-password" required minlength="1" placeholder="Kurulumda belirlediğiniz parola">
+    <button id="loginButton" class="primary" type="submit">Güvenli giriş <span aria-hidden="true">→</span></button>
+    <div id="loginError" class="error" role="alert"></div>
+    <div class="security-note">Bu panel yalnızca yetkili ağ yöneticileri içindir. İlk kullanım öncesinde sunucuda yönetici parolası oluşturulmalıdır.</div>
+  </form>
+</section>
+<div id="appView" class="app hidden">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-icon">Y</div><span class="brand-name">Yasaklama<span style="color:var(--mint)">.</span></span></div>
+    <div class="nav-label">YÖNETİM</div>
+    <div class="nav-item active"><span class="nav-icon">⌂</span><span class="nav-text">Genel bakış</span></div>
+    <div class="nav-item"><span class="nav-icon">⊘</span><span class="nav-text">Engel listesi</span></div>
+    <div class="nav-item"><span class="nav-icon">◷</span><span class="nav-text">Engelleme kayıtları</span></div>
+    <div class="sidebar-footer"><span class="dot"></span><span class="tiny">DNS filtre paneli hazır</span></div>
+  </aside>
+  <main>
+    <header class="topbar">
+      <div><div class="eyebrow">MERKEZİ AĞ GÜVENLİĞİ</div><h1>Genel bakış</h1><p>Okul ağındaki alan adı politikalarını yönetin.</p></div>
+      <div class="top-actions"><div class="avatar">Y</div><button id="logoutButton" class="secondary" type="button">Çıkış yap</button></div>
+    </header>
+    <section class="grid">
+      <article class="card"><div class="metric-top"><span>Engelli alan adları</span><span class="metric-icon">⊘</span></div><div id="ruleCount" class="metric-value">—</div><div class="metric-sub">Merkezi DNS politikasında</div></article>
+      <article class="card"><div class="metric-top"><span>Son 24 saatte engelleme</span><span class="metric-icon">⌁</span></div><div id="blockedCount" class="metric-value">—</div><div class="metric-sub">Kaydedilen engellenmiş DNS sorgusu</div></article>
+      <article class="card"><div class="metric-top"><span>DNS hizmeti</span><span class="metric-icon">◉</span></div><div id="serviceState" class="metric-value" style="font-size:25px">Kontrol ediliyor</div><div class="metric-sub">Sunucu süreci çalışıyor</div></article>
+    </section>
+    <section class="split">
+      <article class="card">
+        <div class="section-head"><div><h2>Engel listesi</h2><p>Bir alan adı ve tüm alt alan adları eşleşir.</p></div><span class="pill">● CANLI POLİTİKA</span></div>
+        <form id="ruleForm" class="domain-form"><input id="domainInput" name="domain" placeholder="ör. sosyal-ornek.com" autocomplete="off" required maxlength="253"><button id="addButton" class="primary" type="submit">＋ Ekle</button></form>
+        <div class="table-wrap"><table><thead><tr><th>Alan adı</th><th>Durum</th><th>İşlem</th></tr></thead><tbody id="rulesBody"></tbody></table></div>
+      </article>
+      <article class="card">
+        <div class="section-head"><div><h2>Son engelleme olayları</h2><p>Yalnızca engellenen sorgular kaydedilir.</p></div></div>
+        <div id="logsBody" class="logs"></div>
+      </article>
+    </section>
+    <div class="callout"><span class="bulb">ⓘ</span><div><strong>Uygulama notu</strong><br>Bu servis DNS düzeyinde engeller. Ağdaki istemcilerin bu sunucuyu DNS olarak kullanması gerekir. HTTPS bağlantılarında sertifika araya girme yapılmadığı için özel bir HTML engel sayfası garanti edilemez; tarayıcı genellikle siteye ulaşılamadığını gösterir.</div></div>
+    <footer>YASAKLAMA · Yetkili okul ağı yönetimi · Kayıtlar yerel SQLite veritabanında tutulur</footer>
+  </main>
+</div>
+<div id="toast" class="toast hidden" role="status"></div>
+<script>
+const $ = (id) => document.getElementById(id);
+let toastTimer = null;
+function notify(message, bad=false) {
+  const el = $("toast");
+  el.textContent = message;
+  el.className = "toast" + (bad ? " bad" : "");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.add("hidden"), 3200);
+}
+async function api(path, options={}) {
+  const headers = {"X-Yasaklama-Request":"1"};
+  if (options.body) headers["Content-Type"] = "application/json";
+  Object.assign(headers, options.headers || {});
+  const response = await fetch(path, {...options, headers, credentials:"same-origin"});
+  let body = {};
+  try { body = await response.json(); } catch (_) {}
+  if (!response.ok) {
+    if (response.status === 401 && path !== "/api/login") showLogin();
+    throw new Error(body.detail || "İstek başarısız oldu.");
+  }
+  return body;
+}
+function showLogin() {
+  $("appView").classList.add("hidden");
+  $("loginView").classList.remove("hidden");
+  $("password").value = "";
+}
+function safeCell(text, className) {
+  const el = document.createElement("span");
+  if (className) el.className = className;
+  el.textContent = text == null ? "" : String(text);
+  return el;
+}
+function formatDate(text) {
+  if (!text) return "Henüz yok";
+  const date = new Date(text);
+  if (Number.isNaN(date.getTime())) return String(text);
+  return date.toLocaleString("tr-TR", {month:"short", day:"2-digit", hour:"2-digit", minute:"2-digit"});
+}
+function renderRules(rules) {
+  const body = $("rulesBody");
+  body.replaceChildren();
+  if (!rules.length) {
+    const row = document.createElement("tr"), cell = document.createElement("td");
+    cell.colSpan = 3; cell.className = "empty"; cell.textContent = "Henüz engellenen alan adı yok.";
+    row.appendChild(cell); body.appendChild(row); return;
+  }
+  for (const rule of rules) {
+    const row = document.createElement("tr");
+    const domainCell = document.createElement("td"); domainCell.appendChild(safeCell(rule.domain, "domain"));
+    const stateCell = document.createElement("td");
+    const pill = safeCell("● Engelli", "pill"); stateCell.appendChild(pill);
+    const actionCell = document.createElement("td");
+    const button = document.createElement("button");
+    button.className = "danger tiny"; button.type = "button"; button.textContent = "Kaldır";
+    button.addEventListener("click", async () => {
+      if (!confirm(rule.domain + " engel listesinden kaldırılsın mı?")) return;
+      try { await api("/api/rules/" + encodeURIComponent(rule.domain), {method:"DELETE"}); notify("Kural kaldırıldı."); await loadState(); }
+      catch (error) { notify(error.message, true); }
+    });
+    actionCell.appendChild(button);
+    row.append(domainCell, stateCell, actionCell); body.appendChild(row);
+  }
+}
+function renderLogs(events) {
+  const body = $("logsBody"); body.replaceChildren();
+  if (!events.length) {
+    const empty = document.createElement("div"); empty.className = "empty"; empty.textContent = "Henüz bir engelleme olayı kaydedilmedi.";
+    body.appendChild(empty); return;
+  }
+  for (const event of events.slice(0, 12)) {
+    const item = document.createElement("div"); item.className = "log-item";
+    const symbol = safeCell("×", "log-symbol");
+    const copy = document.createElement("div");
+    const domain = safeCell(event.domain, "log-domain");
+    const meta = safeCell("İstemci: " + event.client_ip, "log-meta");
+    copy.append(domain, meta);
+    const time = safeCell(formatDate(event.at), "log-time");
+    item.append(symbol, copy, time); body.appendChild(item);
+  }
+}
+async function loadState() {
+  const data = await api("/api/state");
+  $("ruleCount").textContent = String(data.rule_count);
+  $("blockedCount").textContent = String(data.blocked_queries.length);
+  $("serviceState").textContent = "Çalışıyor";
+  renderRules(data.rules); renderLogs(data.blocked_queries);
+}
+$("loginForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  $("loginButton").disabled = true; $("loginError").textContent = "";
+  try {
+    await api("/api/login", {method:"POST", body:JSON.stringify({password:$("password").value})});
+    $("loginView").classList.add("hidden"); $("appView").classList.remove("hidden");
+    await loadState(); notify("Giriş başarılı.");
+  } catch (error) { $("loginError").textContent = error.message; }
+  finally { $("loginButton").disabled = false; }
+});
+$("ruleForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const domain = $("domainInput").value.trim();
+  $("addButton").disabled = true;
+  try {
+    const result = await api("/api/rules", {method:"POST", body:JSON.stringify({domain})});
+    $("domainInput").value = "";
+    notify(result.already_existed ? "Bu kural zaten listede." : "Engelleme kuralı eklendi.");
+    await loadState();
+  } catch (error) { notify(error.message, true); }
+  finally { $("addButton").disabled = false; }
+});
+$("logoutButton").addEventListener("click", async () => {
+  try { await api("/api/logout", {method:"POST"}); } catch (_) {}
+  showLogin();
+});
+</script>
+</body>
+</html>
