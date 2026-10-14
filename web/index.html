@@ -58,7 +58,7 @@ footer{font-size:11px;color:#71859e;text-align:center;margin-top:28px}
     <section class="split">
       <article class="card">
         <div class="section-head"><div><h2>Engel listesi</h2><p>Bir alan adı ve tüm alt alan adları eşleşir.</p></div><span class="pill">● CANLI POLİTİKA</span></div>
-        <form id="ruleForm" class="domain-form"><input id="domainInput" name="domain" placeholder="ör. sosyal-ornek.com" autocomplete="off" required maxlength="253"><button id="addButton" class="primary" type="submit">＋ Ekle</button></form>
+        <form id="ruleForm" class="domain-form"><input id="domainInput" name="domain" placeholder="https://example.com/izlenecek-sayfa" autocomplete="off" required maxlength="2048"><button id="addButton" class="primary" type="submit">＋ Ekle</button></form>
         <div class="table-wrap"><table><thead><tr><th>Alan adı</th><th>Durum</th><th>İşlem</th></tr></thead><tbody id="rulesBody"></tbody></table></div>
       </article>
       <article class="card">
@@ -66,7 +66,11 @@ footer{font-size:11px;color:#71859e;text-align:center;margin-top:28px}
         <div id="logsBody" class="logs"></div>
       </article>
     </section>
-    <div class="callout"><span class="bulb">ⓘ</span><div><strong>Uygulama notu</strong><br>Bu servis DNS düzeyinde engeller. Ağdaki istemcilerin bu sunucuyu DNS olarak kullanması gerekir. HTTPS bağlantılarında sertifika araya girme yapılmadığı için özel bir HTML engel sayfası garanti edilemez; tarayıcı genellikle siteye ulaşılamadığını gösterir.</div></div>
+    <section class="card" style="margin-top:18px">
+      <div class="section-head"><div><h2>Yönetim geçmişi</h2><p>Engel ekleme ve kaldırma işlemleri</p></div></div>
+      <div id="adminLogs" class="logs"></div>
+    </section>
+    <div class="callout"><span class="bulb">ⓘ</span><div><strong>Engel sayfası hakkında</strong><br>Alan adı veya tam bağlantı girebilirsin; sistem alan adını kendisi çıkarır ve alt alan adlarını da engeller. Varsayılan mod DNS üzerinden erişimi keser. Resmî engel sayfasını HTTP isteklerinde göstermek için sunucuya kendi LAN IPv4 adresini vererek <code>--block-ip</code> seçeneğini etkinleştirmen ve 80 numaralı portu açman gerekir. HTTPS adreslerinde, yönetilen cihazlara kurumsal TLS filtreleme politikası dağıtılmadıkça tarayıcı güvenlik/sertifika hatası gösterebilir; uygulama sahte sertifika kurmaz.</div></div>
     <footer>YASAKLAMA · Yetkili okul ağı yönetimi · Kayıtlar yerel SQLite veritabanında tutulur</footer>
   </main>
 </div>
@@ -136,6 +140,26 @@ function renderRules(rules) {
     row.append(domainCell, stateCell, actionCell); body.appendChild(row);
   }
 }
+function renderAdminEvents(events) {
+  const body = $("adminLogs"); body.replaceChildren();
+  if (!events || !events.length) {
+    const empty = document.createElement("div"); empty.className = "empty"; empty.textContent = "Henüz kural değişikliği yapılmadı.";
+    body.appendChild(empty); return;
+  }
+  for (const event of events.slice(0, 20)) {
+    const item = document.createElement("div"); item.className = "log-item";
+    const symbol = safeCell(event.action === "rule_removed" ? "−" : "+", "log-symbol");
+    symbol.style.background = event.action === "rule_removed" ? "#321f2b" : "#102d2a";
+    symbol.style.color = event.action === "rule_removed" ? "#ff9cad" : "#97f1cf";
+    const copy = document.createElement("div");
+    const actionNames = {rule_added:"Engel eklendi", rule_removed:"Engel kaldırıldı", rule_unchanged:"Kural zaten vardı"};
+    const domain = safeCell(actionNames[event.action] || event.action, "log-domain");
+    const meta = safeCell(event.detail, "log-meta");
+    copy.append(domain, meta);
+    const time = safeCell(formatDate(event.at), "log-time");
+    item.append(symbol, copy, time); body.appendChild(item);
+  }
+}
 function renderLogs(events) {
   const body = $("logsBody"); body.replaceChildren();
   if (!events.length) {
@@ -158,7 +182,7 @@ async function loadState() {
   $("ruleCount").textContent = String(data.rule_count);
   $("blockedCount").textContent = String(data.blocked_queries.length);
   $("serviceState").textContent = "Aktif";
-  renderRules(data.rules); renderLogs(data.blocked_queries);
+  renderRules(data.rules); renderLogs(data.blocked_queries); renderAdminEvents(data.admin_events);
 }
 $("loginForm").addEventListener("submit", async (event) => {
   event.preventDefault();
