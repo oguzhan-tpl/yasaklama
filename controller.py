@@ -408,18 +408,18 @@ def blocked_landing_page(requested_path: str, request: Request) -> HTMLResponse:
 <html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>Erişim engellendi | Kurumunuz</title>
 <style>
-*{{box-sizing:border-box}}body{{margin:0;background:#f3f5f8;color:#202b3b;font:16px/1.6 Arial,Helvetica,sans-serif}}
-.top{{height:7px;background:#163f70}}main{{max-width:760px;margin:9vh auto;padding:0 22px}}
-.card{{background:#fff;border:1px solid #d9e0e8;border-radius:5px;box-shadow:0 8px 30px #17283b0b;overflow:hidden}}
-.head{{padding:24px 30px;border-bottom:1px solid #e2e7ed;display:flex;align-items:center;gap:15px}}
-.mark{{width:46px;height:46px;display:grid;place-items:center;background:#163f70;color:#fff;font-weight:bold;font-size:22px;border-radius:3px}}
-.org{{font-size:13px;color:#59697b;letter-spacing:.7px;text-transform:uppercase;font-weight:bold}}h1{{font-size:25px;line-height:1.25;margin:0 0 14px;color:#163f70}}.body{{padding:32px 30px}}
-.notice{{border-left:4px solid #163f70;background:#f4f7fa;padding:14px 17px;margin:24px 0;overflow-wrap:anywhere}}
-.label{{color:#64748b;font-size:12px;text-transform:uppercase;font-weight:bold;letter-spacing:.7px}}.host{{font-weight:bold;color:#25364a;overflow-wrap:anywhere;margin-top:4px}}
-p{{margin:0 0 12px}}.small{{font-size:13px;color:#66758a}}footer{{font-size:12px;color:#8190a2;margin-top:20px;text-align:center}}
-@media(max-width:600px){{main{{margin:25px auto}}.head,.body{{padding:22px 19px}}h1{{font-size:22px}}}}
+*{{box-sizing:border-box}}body{{margin:0;background:#f5f7fa;color:#1f2937;font:16px/1.55 Arial,Helvetica,sans-serif}}
+.top{{height:4px;background:#174a8b}}main{{max-width:700px;margin:8vh auto;padding:0 20px}}
+.card{{background:#fff;border:1px solid #d9e0e8;border-radius:2px;box-shadow:none;overflow:hidden}}
+.head{{padding:20px 24px;border-bottom:1px solid #e2e7ed;display:flex;align-items:center;gap:12px}}
+.mark{{width:36px;height:36px;display:grid;place-items:center;background:#174a8b;color:#fff;font-weight:bold;font-size:18px;border-radius:2px}}
+.org{{font-size:12px;color:#58677a;letter-spacing:.3px;text-transform:uppercase;font-weight:bold}}h1{{font-size:24px;line-height:1.3;margin:0 0 12px;color:#174a8b;font-weight:700}}.body{{padding:26px 24px}}
+.notice{{border:1px solid #d9e0e8;border-left:3px solid #174a8b;background:#f8fafc;padding:12px 14px;margin:20px 0;overflow-wrap:anywhere}}
+.label{{color:#64748b;font-size:11px;text-transform:uppercase;font-weight:bold;letter-spacing:.5px}}.host{{font-weight:bold;color:#25364a;overflow-wrap:anywhere;margin-top:4px}}
+p{{margin:0 0 12px}}.small{{font-size:13px;color:#66758a}}footer{{font-size:12px;color:#718096;margin-top:16px;text-align:center}}
+@media(max-width:600px){{main{{margin:24px auto}}.head,.body{{padding:20px 16px}}h1{{font-size:21px}}}}
 </style></head><body><div class="top"></div><main><section class="card">
-<header class="head"><div class="mark" aria-hidden="true">K</div><div><div class="org">Kurum ağı · İnternet erişim politikası</div><div style="font-size:18px;font-weight:bold;margin-top:3px">Bilgi Teknolojileri Birimi</div></div></header>
+<header class="head"><div class="mark" aria-hidden="true">K</div><div><div class="org">Kurum internet erişim politikası</div><div style="font-size:18px;font-weight:bold;margin-top:3px">Bilgi Teknolojileri Birimi</div></div></header>
 <div class="body"><h1>Bu web sitesine erişim engellendi</h1>
 <p>İstediğiniz web sitesine erişim, kurumunuzun internet kullanım politikaları doğrultusunda engellenmiştir.</p>
 <div class="notice"><div class="label">Engellenen adres</div><div class="host">{safe_host}</div></div>
