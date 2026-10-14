@@ -13,7 +13,7 @@ import secrets
 import sqlite3
 import time
 import threading
-from contextlib import contextmanager
+from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
@@ -351,7 +351,20 @@ class PolicyResolver(BaseResolver):
             return reply
 
 
-app = FastAPI(title="Yasaklama DNS Filter", docs_url=None, redoc_url=None)
+@asynccontextmanager
+async def app_lifespan(_: FastAPI):
+    global CONFIG
+    if not CONFIG_FILE.exists():
+        raise RuntimeError(
+            f"Yapılandırma bulunamadı: {CONFIG_FILE}. İlk olarak python controller.py --init-admin çalıştırın."
+        )
+    with CONFIG_FILE.open("r", encoding="utf-8") as handle:
+        CONFIG = json.load(handle)
+    initialize_database()
+    yield
+
+
+app = FastAPI(title="Yasaklama DNS Filter", docs_url=None, redoc_url=None, lifespan=app_lifespan)
 block_page_app = FastAPI(title="Yasaklama Engelleme Sayfası", docs_url=None, redoc_url=None)
 
 
@@ -414,18 +427,6 @@ p{{margin:0 0 12px}}.small{{font-size:13px;color:#66758a}}footer{{font-size:12px
 <p class="small">Bu bildirim merkezi erişim filtresi tarafından oluşturulmuştur.</p></div></section>
 <footer>Kurumsal ağ güvenliği · Yetkili kullanım ve bilgi politikaları</footer></main></body></html>"""
     return HTMLResponse(page, status_code=403)
-
-
-@app.on_event("startup")
-def startup() -> None:
-    global CONFIG
-    if not CONFIG_FILE.exists():
-        raise RuntimeError(
-            f"Yapılandırma bulunamadı: {CONFIG_FILE}. İlk olarak python controller.py --init-admin çalıştırın."
-        )
-    with CONFIG_FILE.open("r", encoding="utf-8") as handle:
-        CONFIG = json.load(handle)
-    initialize_database()
 
 
 @app.get("/")
