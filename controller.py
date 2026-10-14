@@ -223,7 +223,27 @@ def record_audit(con: sqlite3.Connection, action: str, detail: str) -> None:
     )
 
 
+BLOCK_LOG_DEDUP: dict[tuple[str, str], float] = {}
+BLOCK_LOG_LOCK = threading.Lock()
+
+
 def record_block(client_ip: str, domain: str) -> None:
+    # Keep request storms from turning the audit database into a hot loop.
+    key = (client_ip[:80], domain[:253])
+    now = time.monotonic()
+    with BLOCK_LOG_LOCK:
+        previous = BLOCK_LOG_DEDUP.get(key)
+        if previous is not None and now - previous < 10:
+            return
+        BLOCK_LOG_DEDUP[key] = now
+        if len(BLOCK_LOG_DEDUP) > 5000:
+            cutoff = now - 60
+            for old_key, seen_at in list(BLOCK_LOG_DEDUP.items()):
+                if seen_at < cutoff:
+                    BLOCK_LOG_DEDUP.pop(old_key, None)
+            while len(BLOCK_LOG_DEDUP) > 5000:
+                oldest = min(BLOCK_LOG_DEDUP, key=BLOCK_LOG_DEDUP.get)
+                BLOCK_LOG_DEDUP.pop(oldest, None)
     try:
         with database() as con:
             con.execute(
@@ -243,7 +263,7 @@ class LoginBody(BaseModel):
 
 
 class RuleBody(BaseModel):
-    domain: str = Field(min_length=1, max_length=300)
+    domain: str = Field(min_length=1, max_length=2048)
 
 
 class PolicyResolver(BaseResolver):
@@ -335,6 +355,24 @@ app = FastAPI(title="Yasaklama DNS Filter", docs_url=None, redoc_url=None)
 block_page_app = FastAPI(title="Yasaklama Engelleme Sayfası", docs_url=None, redoc_url=None)
 
 
+@app.middleware("http")
+async def admin_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; "
+        "frame-ancestors 'none'; form-action 'self'"
+    )
+    response.headers["Cache-Control"] = "no-store"
+    if request.url.scheme == "https":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000"
+    return response
+
+
 @block_page_app.middleware("http")
 async def block_page_security_headers(request: Request, call_next):
     response = await call_next(request)
@@ -419,6 +457,8 @@ def login(body: LoginBody, request: Request, response: Response) -> dict:
         raise HTTPException(status_code=401, detail="Parola yanlış.")
     LOGIN_ATTEMPTS.pop(peer, None)
     response.headers["Cache-Control"] = "no-store"
+    with database() as con:
+        record_audit(con, "login", "Yönetici paneline giriş")
     response.set_cookie(
         COOKIE_NAME,
         session_cookie(),
@@ -435,6 +475,8 @@ def login(body: LoginBody, request: Request, response: Response) -> dict:
 def logout(request: Request, response: Response) -> dict:
     require_browser_request(request)
     require_admin(request)
+    with database() as con:
+        record_audit(con, "logout", "Yönetici panelinden çıkış")
     response.delete_cookie(COOKIE_NAME, path="/", httponly=True, samesite="strict")
     return {"ok": True}
 
