@@ -120,4 +120,4 @@ def test_http_block_page_has_official_notice_and_safe_host_text():
     assert response.status_code == 403
     assert "Bu web sitesine erişim engellendi" in page
     assert "social.example" in page
-    assert "Kurum ağı" in page
+    assert "Kurum internet erişim politikası" in page
