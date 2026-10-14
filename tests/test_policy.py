@@ -82,3 +82,42 @@ def test_dns_block_response_uses_nxdomain_without_portal_ip():
     request = DNSRecord.question("social.example", "A")
     response = resolver._blocked_reply(request, "social.example")
     assert response.header.rcode == RCODE.NXDOMAIN
+
+
+def test_resolver_uses_block_policy_and_redirects_blocked_subdomain(monkeypatch):
+    import controller
+    from types import SimpleNamespace
+
+    resolver = PolicyResolver("127.0.0.1", block_ip="192.0.2.10")
+    monkeypatch.setattr(resolver, "_domains", lambda: {"example.com"})
+    monkeypatch.setattr(controller, "record_block", lambda client_ip, domain: None)
+    handler = SimpleNamespace(client_address=("192.0.2.33", 53000))
+    response = resolver.resolve(DNSRecord.question("video.example.com", "A"), handler)
+
+    assert response.header.rcode == RCODE.NOERROR
+    assert str(response.rr[0].rdata) == "192.0.2.10"
+
+
+def test_http_block_page_has_official_notice_and_safe_host_text():
+    from starlette.requests import Request
+    from controller import blocked_landing_page
+
+    scope = {
+        "type": "http",
+        "http_version": "1.1",
+        "method": "GET",
+        "scheme": "http",
+        "path": "/blocked/path",
+        "raw_path": b"/blocked/path",
+        "query_string": b"",
+        "headers": [(b"host", b"social.example")],
+        "client": ("192.0.2.33", 50000),
+        "server": ("192.0.2.10", 80),
+    }
+    response = blocked_landing_page("blocked/path", Request(scope))
+    page = response.body.decode("utf-8")
+
+    assert response.status_code == 403
+    assert "Bu web sitesine erişim engellendi" in page
+    assert "social.example" in page
+    assert "Kurum ağı" in page
