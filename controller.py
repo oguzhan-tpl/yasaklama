@@ -57,11 +57,19 @@ def normalize_domain(value: str) -> str:
             raise ValueError("Yalnızca geçerli HTTP/HTTPS bağlantıları veya alan adı girin.")
         if parsed.username is not None or parsed.password is not None:
             raise ValueError("Kimlik bilgisi içeren bağlantılar kabul edilmiyor.")
+        try:
+            _ = parsed.port
+        except ValueError as exc:
+            raise ValueError("Bağlantıdaki port numarası geçersiz.") from exc
         candidate = parsed.hostname
     elif any(token in candidate for token in ("/", "?", "#")):
         parsed = urlsplit("https://" + candidate)
         if not parsed.hostname or parsed.username is not None or parsed.password is not None:
             raise ValueError("Bağlantıdan alan adı çıkarılamadı.")
+        try:
+            _ = parsed.port
+        except ValueError as exc:
+            raise ValueError("Bağlantıdaki port numarası geçersiz.") from exc
         candidate = parsed.hostname
     candidate = candidate.strip().lower()
     if not candidate:
@@ -163,6 +171,13 @@ def initialize_database() -> None:
                 client_ip TEXT NOT NULL,
                 domain TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS audit_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                at TEXT NOT NULL,
+                actor TEXT NOT NULL,
+                action TEXT NOT NULL,
+                detail TEXT NOT NULL
+            );
             """
         )
 
@@ -199,6 +214,13 @@ def require_admin(request: Request) -> None:
 def require_browser_request(request: Request) -> None:
     if request.headers.get("x-yasaklama-request") != "1":
         raise HTTPException(status_code=403, detail="İstek doğrulama başlığı eksik.")
+
+
+def record_audit(con: sqlite3.Connection, action: str, detail: str) -> None:
+    con.execute(
+        "INSERT INTO audit_events(at, actor, action, detail) VALUES (?, 'admin', ?, ?)",
+        (utc_now(), action[:80], detail[:300]),
+    )
 
 
 def record_block(client_ip: str, domain: str) -> None:
@@ -396,6 +418,7 @@ def login(body: LoginBody, request: Request, response: Response) -> dict:
         LOGIN_ATTEMPTS[peer] = (0, now + 60) if attempts >= 6 else (attempts, 0.0)
         raise HTTPException(status_code=401, detail="Parola yanlış.")
     LOGIN_ATTEMPTS.pop(peer, None)
+    response.headers["Cache-Control"] = "no-store"
     response.set_cookie(
         COOKIE_NAME,
         session_cookie(),
@@ -425,7 +448,10 @@ def get_state(request: Request) -> dict:
             "SELECT id, at, client_ip, domain FROM blocked_queries ORDER BY id DESC LIMIT 100"
         )]
         total = con.execute("SELECT COUNT(*) FROM rules").fetchone()[0]
-    return {"rules": rules, "blocked_queries": recent, "rule_count": total}
+        admin_events = [dict(row) for row in con.execute(
+            "SELECT id, at, actor, action, detail FROM audit_events ORDER BY id DESC LIMIT 30"
+        )]
+    return {"rules": rules, "blocked_queries": recent, "rule_count": total, "admin_events": admin_events}
 
 
 @app.post("/api/rules")
@@ -442,6 +468,7 @@ def add_rule(body: RuleBody, request: Request) -> dict:
             "INSERT OR IGNORE INTO rules(domain, created_at, created_by) VALUES (?, ?, 'admin')",
             (domain, utc_now()),
         )
+        record_audit(con, "rule_unchanged" if existing else "rule_added", domain)
     return {"ok": True, "domain": domain, "already_existed": existing is not None}
 
 
@@ -454,7 +481,9 @@ def remove_rule(domain: str, request: Request) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     with database() as con:
-        con.execute("DELETE FROM rules WHERE domain=?", (domain,))
+        cursor = con.execute("DELETE FROM rules WHERE domain=?", (domain,))
+        if cursor.rowcount:
+            record_audit(con, "rule_removed", domain)
     return {"ok": True, "domain": domain}
 
 
