@@ -18,8 +18,10 @@ Write-Host "Bu bilgisayarda DNS filtresi, yonetim paneli ve HTTP engel sayfasi a
 Write-Host "Yonetici izni Windows tarafindan onaylanir; guvenlik onlemleri atlanmaz."
 Write-Host ""
 
-$ipConfig = Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -and $_.IPv4Address } | Sort-Object InterfaceMetric | Select-Object -First 1
-if (-not $ipConfig) { throw "Etkin ag arabirimi bulunamadi. Once okul agina baglanin." }
+$defaultRoute = Get-NetRoute -DestinationPrefix "0.0.0.0/0" -ErrorAction SilentlyContinue | Where-Object { $_.NextHop -ne "0.0.0.0" } | Sort-Object RouteMetric | Select-Object -First 1
+if (-not $defaultRoute) { throw "Etkin ag varsayilan rotasi bulunamadi. Once okul agina baglanin." }
+$ipConfig = Get-NetIPConfiguration -InterfaceIndex $defaultRoute.InterfaceIndex -ErrorAction SilentlyContinue
+if (-not $ipConfig -or -not $ipConfig.IPv4Address) { throw "Varsayilan ag arabirimi icin IPv4 adresi bulunamadi." }
 $serverIP = [string]$ipConfig.IPv4Address[0].IPAddress
 if ([string]::IsNullOrWhiteSpace($serverIP) -or $serverIP.StartsWith("169.254.") -or $serverIP.StartsWith("127.")) {
     throw "Gecerli yerel IPv4 adresi bulunamadi."
