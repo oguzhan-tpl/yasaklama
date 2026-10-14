@@ -18,6 +18,27 @@ Write-Host "Bu bilgisayarda DNS filtresi, yonetim paneli ve HTTP engel sayfasi a
 Write-Host "Yonetici izni Windows tarafindan onaylanir; guvenlik onlemleri atlanmaz."
 Write-Host ""
 
+# Safety gate: this build's default DNS listener is separate from Windows DNS.
+# Do not install/start a competing resolver or imply that it can block school clients
+# when their existing DNS/DHCP settings must remain untouched.
+$existingDnsService = Get-Service -Name DNS -ErrorAction SilentlyContinue
+if ($existingDnsService -and $existingDnsService.Status -eq "Running") {
+    Write-Host "DURDURULDU: Bu sunucuda mevcut Windows DNS hizmeti zaten calisiyor." -ForegroundColor Yellow
+    Write-Host "Yasaklama'nin bu surumu mevcut Windows DNS hizmetine kural yazmiyor; kendi DNS dinleyicisini baslatmaya calismak cakisma yaratir."
+    Write-Host "Mevcut IP, DNS, DHCP, DNS bolgeleri ve guvenlik duvari ayarlari degistirilmedi."
+    Write-Host ""
+    Write-Host "Salt okunur tani raporu icin scripts\OnKontrol.ps1 dosyasini normal PowerShell'de calistirin."
+    Write-Host "Okul istemcileri zaten bu DNS sunucusunu kullaniyorsa, dogru gelistirme yolu ayarlari degistirmek degil mevcut Windows DNS'e guvenli entegrasyondur."
+    exit 2
+}
+
+Write-Host "DURDURULDU: Windows DNS hizmeti calismiyor." -ForegroundColor Yellow
+Write-Host "Ayrik Yasaklama DNS dinleyicisiyle bu projeyi calistirmak, tum istemcilerin DNS sorgularini buraya yonlendirmeyi gerektirir."
+Write-Host "Sen ag/istemci DNS ayarlarinin degismemesini istedigin icin kurulum devam ettirilmiyor."
+Write-Host "Hicbir IP/DNS/DHCP/firewall ayari degistirilmedi."
+Write-Host "Salt okunur tani raporu icin scripts\OnKontrol.ps1 dosyasini calistirin."
+exit 2
+
 $defaultRoute = Get-NetRoute -DestinationPrefix "0.0.0.0/0" -ErrorAction SilentlyContinue | Where-Object { $_.NextHop -ne "0.0.0.0" } | Sort-Object RouteMetric | Select-Object -First 1
 if (-not $defaultRoute) { throw "Etkin ag varsayilan rotasi bulunamadi. Once okul agina baglanin." }
 $ipConfig = Get-NetIPConfiguration -InterfaceIndex $defaultRoute.InterfaceIndex -ErrorAction SilentlyContinue
