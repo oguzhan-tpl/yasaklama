@@ -30,9 +30,17 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     cert_path = output_dir / "server-cert.pem"
     key_path = output_dir / "server-key.pem"
-    if cert_path.exists() or key_path.exists():
-        print("TLS certificate already exists; leaving it unchanged.")
-        return
+    if cert_path.exists() and key_path.exists():
+        try:
+            existing = x509.load_pem_x509_certificate(cert_path.read_bytes())
+            san = existing.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
+            existing_ips = san.get_values_for_type(x509.IPAddress)
+            if lan_ip in existing_ips and existing.not_valid_after_utc > datetime.now(timezone.utc):
+                print("TLS certificate already matches this server IP; leaving it unchanged.")
+                return
+            print("Server IP changed or certificate expired; replacing the local self-signed certificate.")
+        except (ValueError, OSError, x509.ExtensionNotFound):
+            print("Existing local TLS certificate is incomplete or invalid; replacing it.")
 
     hostname = socket.gethostname().strip() or "yasaklama-server"
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -78,13 +86,16 @@ def main() -> None:
     )
     cert_bytes = certificate.public_bytes(serialization.Encoding.PEM)
 
-    # Exclusive creation avoids overwriting an existing private key.
-    key_fd = os.open(key_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    key_tmp = output_dir / "server-key.pem.tmp"
+    cert_tmp = output_dir / "server-cert.pem.tmp"
+    key_fd = os.open(key_tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(key_fd, "wb") as handle:
         handle.write(key_bytes)
-    cert_fd = os.open(cert_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+    cert_fd = os.open(cert_tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
     with os.fdopen(cert_fd, "wb") as handle:
         handle.write(cert_bytes)
+    os.replace(key_tmp, key_path)
+    os.replace(cert_tmp, cert_path)
 
     print(f"Certificate: {cert_path}")
     print(f"Private key: {key_path}")
