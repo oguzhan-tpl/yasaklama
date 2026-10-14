@@ -56,9 +56,10 @@ if (-not (Test-Path $certFile) -or -not (Test-Path $keyFile)) {
 }
 
 $occupiedDns = @(Get-NetUDPEndpoint -LocalPort 53 -ErrorAction SilentlyContinue)
-if ($occupiedDns.Count -gt 0) {
-    $pids = ($occupiedDns | Select-Object -ExpandProperty OwningProcess -Unique) -join ", "
-    throw "UDP 53 baska bir program tarafindan kullaniliyor (PID: $pids). Once DNS portunu kullanan servisi yetkili yoneticiyle inceleyin."
+$occupiedDnsTcp = @(Get-NetTCPConnection -State Listen -LocalPort 53 -ErrorAction SilentlyContinue)
+if ($occupiedDns.Count -gt 0 -or $occupiedDnsTcp.Count -gt 0) {
+    $pids = (@($occupiedDns + $occupiedDnsTcp) | Select-Object -ExpandProperty OwningProcess -Unique) -join ", "
+    throw "Port 53 baska bir program tarafindan kullaniliyor (PID: $pids). Once DNS portunu kullanan servisi yetkili yoneticiyle inceleyin."
 }
 $occupiedHttp = @(Get-NetTCPConnection -State Listen -LocalPort 80 -ErrorAction SilentlyContinue)
 if ($occupiedHttp.Count -gt 0) {
@@ -79,7 +80,7 @@ $firewallRules = @(
 )
 foreach ($rule in $firewallRules) {
     if (-not (Get-NetFirewallRule -DisplayName $rule.Name -ErrorAction SilentlyContinue)) {
-        New-NetFirewallRule -DisplayName $rule.Name -Direction Inbound -Action Allow -Protocol $rule.Protocol -LocalPort $rule.Port -Profile Domain,Private -Description "Yasaklama authorized school LAN service" | Out-Null
+        New-NetFirewallRule -DisplayName $rule.Name -Direction Inbound -Action Allow -Protocol $rule.Protocol -LocalPort $rule.Port -Profile Any -RemoteAddress LocalSubnet -Description "Yasaklama authorized school LAN service" | Out-Null
     }
 }
 
