@@ -4,6 +4,8 @@ import argparse
 import base64
 import getpass
 import hashlib
+import html
+import ipaddress
 import hmac
 import json
 import os
@@ -15,12 +17,13 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
+from urllib.parse import urlsplit
 
 import uvicorn
 from dnslib import DNSRecord, QTYPE, RCODE, SOA, RR
 from dnslib.server import BaseResolver, DNSServer
 from fastapi import FastAPI, HTTPException, Request, Response
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, Field
 
 ROOT = Path(__file__).resolve().parent
@@ -28,6 +31,7 @@ DATA_DIR = Path(os.environ.get("YASAKLAMA_DATA_DIR", str(ROOT / "data"))).resolv
 CONFIG_FILE = DATA_DIR / "config.json"
 DB_FILE = DATA_DIR / "policy.sqlite3"
 WEB_FILE = ROOT / "web" / "index.html"
+BLOCK_PAGE_PORTAL_FILE = ROOT / "web" / "blocked.html"
 COOKIE_NAME = "yasaklama_session"
 SESSION_TTL = 8 * 60 * 60
 CONFIG: dict | None = None
@@ -39,14 +43,29 @@ def utc_now() -> str:
 
 
 def normalize_domain(value: str) -> str:
-    """Canonicalize a hostname; reject URLs, IPs, wildcards and malformed labels."""
+    """Accept a domain or pasted HTTP(S) URL; return its canonical hostname."""
     if not isinstance(value, str):
-        raise ValueError("Alan adı metin olmalı.")
-    candidate = value.strip().lower()
-    if not candidate or len(candidate) > 300:
+        raise ValueError("Alan adı veya web bağlantısı metin olmalı.")
+    candidate = value.strip()
+    if not candidate or len(candidate) > 2048:
         raise ValueError("Alan adı boş veya çok uzun.")
-    if any(token in candidate for token in ("://", "/", "\\", "?", "#", "@", "*")):
-        raise ValueError("URL değil, yalnızca alan adı girin.")
+    if "*" in candidate or "\\" in candidate or "@" in candidate:
+        raise ValueError("Wildcard veya kullanıcı bilgisi kabul edilmiyor.")
+    if "://" in candidate:
+        parsed = urlsplit(candidate)
+        if parsed.scheme.lower() not in {"http", "https"} or not parsed.hostname:
+            raise ValueError("Yalnızca geçerli HTTP/HTTPS bağlantıları veya alan adı girin.")
+        if parsed.username is not None or parsed.password is not None:
+            raise ValueError("Kimlik bilgisi içeren bağlantılar kabul edilmiyor.")
+        candidate = parsed.hostname
+    elif any(token in candidate for token in ("/", "?", "#")):
+        parsed = urlsplit("https://" + candidate)
+        if not parsed.hostname or parsed.username is not None or parsed.password is not None:
+            raise ValueError("Bağlantıdan alan adı çıkarılamadı.")
+        candidate = parsed.hostname
+    candidate = candidate.strip().lower()
+    if not candidate:
+        raise ValueError("Alan adı boş olamaz.")
     candidate = candidate[:-1] if candidate.endswith(".") else candidate
     if not candidate or candidate.startswith(".") or ".." in candidate:
         raise ValueError("Alan adı biçimi geçersiz.")
@@ -206,9 +225,10 @@ class RuleBody(BaseModel):
 
 
 class PolicyResolver(BaseResolver):
-    def __init__(self, upstream: str, upstream_port: int = 53):
+    def __init__(self, upstream: str, upstream_port: int = 53, block_ip: str | None = None):
         self.upstream = upstream
         self.upstream_port = upstream_port
+        self.block_ip = str(ipaddress.IPv4Address(block_ip)) if block_ip else None
         self._cache_lock = threading.Lock()
         self._cached_domains: set[str] = set()
         self._cache_at = 0.0
@@ -227,35 +247,54 @@ class PolicyResolver(BaseResolver):
             self._cache_at = time.monotonic()
             return self._cached_domains
 
+    def _blocked_reply(self, request, canonical: str):
+        reply = request.reply()
+        reply.header.aa = 1
+        # Optional HTTP landing page: only A records are mapped to the portal.
+        # AAAA gets NODATA so clients can continue with the IPv4 A lookup.
+        if self.block_ip and request.q.qtype == QTYPE.A:
+            from dnslib import A
+            reply.add_answer(RR(rname=request.q.qname, rtype=QTYPE.A, ttl=5, rdata=A(self.block_ip)))
+            return reply
+        if self.block_ip and request.q.qtype == QTYPE.AAAA:
+            reply.header.rcode = RCODE.NOERROR
+            return reply
+        reply.header.rcode = RCODE.NXDOMAIN
+        reply.add_auth(
+            RR(
+                rname=canonical + ".",
+                rtype=QTYPE.SOA,
+                ttl=5,
+                rdata=SOA(
+                    mname="ns.invalid.",
+                    rname="hostmaster.invalid.",
+                    times=(5, 5, 5, 5, 5),
+                ),
+            )
+        )
+        return reply
+
     def resolve(self, request, handler):
         qname = str(request.q.qname).rstrip(".").lower()
         try:
             canonical = qname.encode("idna").decode("ascii")
         except UnicodeError:
             canonical = qname
-        if matches_blocked_domain(canonical, self._domains()):
+        try:
+            domains = self._domains()
+        except sqlite3.Error:
+            # Fail closed if the policy database cannot be read.
             reply = request.reply()
-            reply.header.rcode = RCODE.NXDOMAIN
-            reply.header.aa = 1
-            reply.add_auth(
-                RR(
-                    rname=canonical + ".",
-                    rtype=QTYPE.SOA,
-                    ttl=30,
-                    rdata=SOA(
-                        mname="ns.invalid.",
-                        rname="hostmaster.invalid.",
-                        times=(30, 30, 30, 30, 30),
-                    ),
-                )
-            )
+            reply.header.rcode = RCODE.SERVFAIL
+            return reply
+        if matches_blocked_domain(canonical, domains):
             client_ip = "unknown"
             try:
                 client_ip = handler.client_address[0]
             except (AttributeError, IndexError, TypeError):
                 pass
             record_block(client_ip, canonical)
-            return reply
+            return self._blocked_reply(request, canonical)
         try:
             raw_reply = request.send(
                 self.upstream,
@@ -271,6 +310,50 @@ class PolicyResolver(BaseResolver):
 
 
 app = FastAPI(title="Yasaklama DNS Filter", docs_url=None, redoc_url=None)
+block_page_app = FastAPI(title="Yasaklama Engelleme Sayfası", docs_url=None, redoc_url=None)
+
+
+@block_page_app.middleware("http")
+async def block_page_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-store, max-age=0"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    return response
+
+
+@block_page_app.get("/{requested_path:path}", response_class=HTMLResponse)
+def blocked_landing_page(requested_path: str, request: Request) -> HTMLResponse:
+    host_header = request.headers.get("host", "blocked site")
+    try:
+        target_host = urlsplit("//" + host_header).hostname or "blocked site"
+    except ValueError:
+        target_host = "blocked site"
+    safe_host = html.escape(target_host[:253])
+    page = f"""<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Erişim engellendi | Kurumunuz</title>
+<style>
+*{{box-sizing:border-box}}body{{margin:0;background:#f3f5f8;color:#202b3b;font:16px/1.6 Arial,Helvetica,sans-serif}}
+.top{{height:7px;background:#163f70}}main{{max-width:760px;margin:9vh auto;padding:0 22px}}
+.card{{background:#fff;border:1px solid #d9e0e8;border-radius:5px;box-shadow:0 8px 30px #17283b0b;overflow:hidden}}
+.head{{padding:24px 30px;border-bottom:1px solid #e2e7ed;display:flex;align-items:center;gap:15px}}
+.mark{{width:46px;height:46px;display:grid;place-items:center;background:#163f70;color:#fff;font-weight:bold;font-size:22px;border-radius:3px}}
+.org{{font-size:13px;color:#59697b;letter-spacing:.7px;text-transform:uppercase;font-weight:bold}}h1{{font-size:25px;line-height:1.25;margin:0 0 14px;color:#163f70}}.body{{padding:32px 30px}}
+.notice{{border-left:4px solid #163f70;background:#f4f7fa;padding:14px 17px;margin:24px 0;overflow-wrap:anywhere}}
+.label{{color:#64748b;font-size:12px;text-transform:uppercase;font-weight:bold;letter-spacing:.7px}}.host{{font-weight:bold;color:#25364a;overflow-wrap:anywhere;margin-top:4px}}
+p{{margin:0 0 12px}}.small{{font-size:13px;color:#66758a}}footer{{font-size:12px;color:#8190a2;margin-top:20px;text-align:center}}
+@media(max-width:600px){{main{{margin:25px auto}}.head,.body{{padding:22px 19px}}h1{{font-size:22px}}}}
+</style></head><body><div class="top"></div><main><section class="card">
+<header class="head"><div class="mark" aria-hidden="true">K</div><div><div class="org">Kurum ağı · İnternet erişim politikası</div><div style="font-size:18px;font-weight:bold;margin-top:3px">Bilgi Teknolojileri Birimi</div></div></header>
+<div class="body"><h1>Bu web sitesine erişim engellendi</h1>
+<p>İstediğiniz web sitesine erişim, kurumunuzun internet kullanım politikaları doğrultusunda engellenmiştir.</p>
+<div class="notice"><div class="label">Engellenen adres</div><div class="host">{safe_host}</div></div>
+<p>Erişimin iş amacıyla gerekli olduğunu düşünüyorsanız kurumunuzun yetkili bilgi teknolojileri birimiyle iletişime geçin.</p>
+<p class="small">Bu bildirim merkezi erişim filtresi tarafından oluşturulmuştur.</p></div></section>
+<footer>Kurumsal ağ güvenliği · Yetkili kullanım ve bilgi politikaları</footer></main></body></html>"""
+    return HTMLResponse(page, status_code=403)
 
 
 @app.on_event("startup")
@@ -382,6 +465,9 @@ def main() -> None:
     parser.add_argument("--web-port", type=int, default=8765)
     parser.add_argument("--dns-host", default="0.0.0.0")
     parser.add_argument("--dns-port", type=int, default=5353)
+    parser.add_argument("--block-ip", default=None, help="IPv4 address of this server; enables the HTTP block page for blocked A queries")
+    parser.add_argument("--block-page-host", default="0.0.0.0")
+    parser.add_argument("--block-page-port", type=int, default=80)
     parser.add_argument("--upstream", default="1.1.1.1")
     parser.add_argument("--upstream-port", type=int, default=53)
     parser.add_argument("--ssl-certfile", default=None)
@@ -398,7 +484,37 @@ def main() -> None:
         print("UYARI: TLS olmadan yönetim panelini LAN'a açıyorsunuz; parolalar ağda şifrelenmez.")
         print("Yalnızca test ağında kullanın veya HTTPS sertifikası tanımlayın.")
     initialize_database()
-    resolver = PolicyResolver(args.upstream, args.upstream_port)
+    block_ip = None
+    if args.block_ip:
+        try:
+            block_ip = str(ipaddress.IPv4Address(args.block_ip))
+        except ipaddress.AddressValueError as exc:
+            raise SystemExit("--block-ip geçerli bir IPv4 adresi olmalıdır.") from exc
+    resolver = PolicyResolver(args.upstream, args.upstream_port, block_ip=block_ip)
+    block_page_server = None
+    block_page_thread = None
+    if block_ip:
+        block_config = uvicorn.Config(
+            block_page_app,
+            host=args.block_page_host,
+            port=args.block_page_port,
+            log_level="warning",
+            access_log=False,
+        )
+        block_page_server = uvicorn.Server(block_config)
+        block_page_thread = threading.Thread(target=block_page_server.run, daemon=True)
+        block_page_thread.start()
+        deadline = time.monotonic() + 5
+        while not block_page_server.started and block_page_thread.is_alive() and time.monotonic() < deadline:
+            time.sleep(0.05)
+        if not block_page_server.started:
+            block_page_server.should_exit = True
+            raise SystemExit(
+                f"Engelleme sayfası {args.block_page_host}:{args.block_page_port} üzerinde başlamadı. "
+                "Portu başka bir servis kullanıyor olabilir."
+            )
+        print(f"HTTP engel sayfası: {args.block_page_host}:{args.block_page_port}")
+        print("Not: Bu sayfa HTTP için çalışır; HTTPS adreslerinde tarayıcı sertifika hatası gösterebilir.")
     udp_server = DNSServer(resolver, port=args.dns_port, address=args.dns_host, tcp=False)
     tcp_server = DNSServer(resolver, port=args.dns_port, address=args.dns_host, tcp=True)
     udp_server.start_thread()
@@ -417,6 +533,10 @@ def main() -> None:
     finally:
         udp_server.stop()
         tcp_server.stop()
+        if block_page_server:
+            block_page_server.should_exit = True
+        if block_page_thread and block_page_thread.is_alive():
+            block_page_thread.join(timeout=3)
 
 
 if __name__ == "__main__":
