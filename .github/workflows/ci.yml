@@ -19,6 +19,8 @@ jobs:
       - name: Compile Python
         run: python -m compileall -q controller.py tests
       - name: Test self-signed TLS certificate generation
-        run: python scripts/create_lan_cert.py --ip 192.0.2.50 --output-dir /tmp/yasaklama-cert-test
+        run: |
+          python scripts/create_lan_cert.py --ip 192.0.2.50 --output-dir /tmp/yasaklama-cert-test
+          python scripts/create_lan_cert.py --ip 192.0.2.51 --output-dir /tmp/yasaklama-cert-test
       - name: Run tests
         run: python -m pytest -q
